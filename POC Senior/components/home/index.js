@@ -9,3 +9,210 @@ app.home = kendo.observable({
 // Add custom code here. For more information about custom code, see http://docs.telerik.com/platform/screenbuilder/troubleshooting/how-to-keep-custom-code-changes
 
 // END_CUSTOM_CODE_home
+(function(parent) {
+    var dataProvider = app.data.requestSenior,
+        dataSourceAprove = app.data.dataSourceAprove,
+        fetchFilteredData = function(paramFilter, searchFilter) {
+            var model = parent.get('homeModel'),
+                dataSource = model.get('dataSource');
+
+            if (paramFilter) {
+                model.set('paramFilter', paramFilter);
+            } else {
+                model.set('paramFilter', undefined);
+            }
+
+            if (paramFilter && searchFilter) {
+                dataSource.filter({
+                    logic: 'and',
+                    filters: [paramFilter, searchFilter]
+                });
+            } else if (paramFilter || searchFilter) {
+                dataSource.filter(paramFilter || searchFilter);
+            } else {
+                dataSource.filter({});
+            }
+        },
+        processImage = function(img) {
+
+            if (!img) {
+                var empty1x1png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVQI12NgYAAAAAMAASDVlMcAAAAASUVORK5CYII=';
+                img = 'data:image/png;base64,' + empty1x1png;
+            }
+
+            return img;
+        },
+        dataSourceOptions = {
+			transport: {
+        		read: function(options) {
+                    $.ajax({
+                		url: 'http://localhost:8081/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_requisicoespendentes',
+                		type: 'POST',
+                		contentType: "text/xml",
+                		dataType: "xml",
+                		data: '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://services.senior.com.br">\
+                                <soapenv:Header/> \
+                                <soapenv:Body>\
+                                <ser:RequisicoesPendentes_2>\
+                                <user>senior</user>\
+                                <password>senior</password>\
+                                <encryption>0</encryption>\
+                                <parameters>\
+                                </parameters>\
+                                </ser:RequisicoesPendentes_2>\
+                                </soapenv:Body>\
+                                </soapenv:Envelope>',
+                		success: function(result) {
+                    		options.success(result);
+                		},
+                		error: function(xhr, ajaxOptions, thrownError) {
+                    		console.log(xhr.status);
+                    		console.log(thrownError);
+                		}
+            		});
+    			},
+        	},
+    		schema: {
+        		type: "xml",
+        		data: "S:Envelope/S:Body/ns2:RequisicoesPendentes_2Response/result/gridRequisicoes",
+       		    model: {
+                    fields: {
+                        codEmp: "codDer/text()",
+                        numEme: "numEme/text()",
+                        qtdEme: "qtdEme/text()"
+                    }
+                }
+            }
+		},
+        dataSource = new kendo.data.DataSource(dataSourceOptions),
+        homeModel = kendo.observable({
+            dataSource: dataSource,
+            fixHierarchicalData: function(data) {
+                var result = {},
+                    layout = {};
+
+                $.extend(true, result, data);
+
+                (function removeNulls(obj) {
+                    var i, name,
+                        names = Object.getOwnPropertyNames(obj);
+
+                    for (i = 0; i < names.length; i++) {
+                        name = names[i];
+
+                        if (obj[name] === null) {
+                            delete obj[name];
+                        } else if ($.type(obj[name]) === 'object') {
+                            removeNulls(obj[name]);
+                        }
+                    }
+                })(result);
+
+                (function fix(source, layout) {
+                    var i, j, name, srcObj, ltObj, type,
+                        names = Object.getOwnPropertyNames(layout);
+
+                    for (i = 0; i < names.length; i++) {
+                        name = names[i];
+                        srcObj = source[name];
+                        ltObj = layout[name];
+                        type = $.type(srcObj);
+
+                        if (type === 'undefined' || type === 'null') {
+                            source[name] = ltObj;
+                        } else {
+                            if (srcObj.length > 0) {
+                                for (j = 0; j < srcObj.length; j++) {
+                                    fix(srcObj[j], ltObj[0]);
+                                }
+                            } else {
+                                fix(srcObj, ltObj);
+                            }
+                        }
+                    }
+                })(result, layout);
+
+                return result;
+            },
+    		aprove: function(){
+                var request = { 
+                    codEmp: homeModel.currentItem.codEmp
+                }   
+                dataSourceAprove.add(request);
+            },
+            refuse: function(){
+
+            },
+            itemClick: function(e) {
+                var dataItem = e.dataItem || homeModel.originalItem;
+
+                app.mobileApp.navigate('#components/home/details.html?uid=' + dataItem.uid);
+
+            },
+            detailsShow: function(e) {
+                homeModel.setCurrentItemByUid(e.view.params.uid);
+            },
+            setCurrentItemByUid: function(uid) {
+                var item = uid,
+                    dataSource = homeModel.get('dataSource'),
+                    itemModel = dataSource.getByUid(item);
+
+                if (!itemModel.codEmp) {
+                    itemModel.codEmp = String.fromCharCode(160);
+                }
+
+                homeModel.set('originalItem', itemModel);
+                homeModel.set('currentItem',
+                    homeModel.fixHierarchicalData(itemModel));
+
+                return itemModel;
+            },
+            linkBind: function(linkString) {
+                var linkChunks = linkString.split('|');
+                if (linkChunks[0].length === 0) {
+                    return this.get("currentItem." + linkChunks[1]);
+                }
+                return linkChunks[0] + this.get("currentItem." + linkChunks[1]);
+            },
+            imageBind: function(imageField) {
+                if (imageField.indexOf("|") > -1) {
+                    return processImage(this.get("currentItem." + imageField.split("|")[0]));
+                }
+                return processImage(imageField);
+            },
+            currentItem: {}
+        });
+
+    if (typeof dataProvider.sbProviderReady === 'function') {
+        dataProvider.sbProviderReady(function dl_sbProviderReady() {
+            parent.set('homeModel', homeModel);
+        });
+    } else {
+        parent.set('homeModel', homeModel);
+    }
+
+    parent.set('onShow', function(e) {
+        var param = e.view.params.filter ? JSON.parse(e.view.params.filter) : null,
+            isListmenu = false,
+            backbutton = e.view.element && e.view.element.find('header [data-role="navbar"] .backButtonWrapper');
+
+        if (param || isListmenu) {
+            backbutton.show();
+            backbutton.css('visibility', 'visible');
+        } else {
+            if (e.view.element.find('header [data-role="navbar"] [data-role="button"]').length) {
+                backbutton.hide();
+            } else {
+                backbutton.css('visibility', 'hidden');
+            }
+        }
+
+        fetchFilteredData(param);
+    });
+
+})(app.home);
+
+// START_CUSTOM_CODE_homeModel
+// Add custom code here. For more information about custom code, see http://docs.telerik.com/platform/screenbuilder/troubleshooting/how-to-keep-custom-code-changes
+
+// END_CUSTOM_CODE_homeModel
