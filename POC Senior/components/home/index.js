@@ -12,6 +12,7 @@ app.home = kendo.observable({
 (function(parent) {
     var dataProvider = app.data.requestSenior,
         dataSourceAprove = app.data.dataSourceAprove,
+        dataSourceRefuse = app.data.dataSourceRefuse,
         fetchFilteredData = function(paramFilter, searchFilter) {
             var model = parent.get('homeModel'),
                 dataSource = model.get('dataSource');
@@ -43,6 +44,7 @@ app.home = kendo.observable({
             return img;
         },
         dataSourceOptions = {
+            offlineStorage: 'requestSenior',
 			transport: {
         		read: function(options) {
                     $.ajax({
@@ -136,12 +138,25 @@ app.home = kendo.observable({
             },
     		aprove: function(){
                 var request = { 
-                    codEmp: homeModel.currentItem.codEmp
+                    codEmp: homeModel.currentItem.codEmp,
+                    codUsu: 1,
+                    numEme: homeModel.currentItem.numEme,
+                    qtdEme: homeModel.currentItem.qtdEme,
+                    seqEme: 1,
                 }   
                 dataSourceAprove.add(request);
+                dataSourceAprove.sync();
             },
             refuse: function(){
-
+                var request = { 
+                    codEmp: homeModel.currentItem.codEmp,
+                    codUsu: 1,
+                    numEme: homeModel.currentItem.numEme,
+                    qtdEme: homeModel.currentItem.qtdEme,
+                    seqEme: 1,
+                }   
+                dataSourceRefuse.add(request);
+                dataSourceRefuse.sync();
             },
             itemClick: function(e) {
                 var dataItem = e.dataItem || homeModel.originalItem;
@@ -183,13 +198,9 @@ app.home = kendo.observable({
             currentItem: {}
         });
 
-    if (typeof dataProvider.sbProviderReady === 'function') {
-        dataProvider.sbProviderReady(function dl_sbProviderReady() {
-            parent.set('homeModel', homeModel);
-        });
-    } else {
-        parent.set('homeModel', homeModel);
-    }
+  
+    parent.set('homeModel', homeModel);
+  
 
     parent.set('onShow', function(e) {
         var param = e.view.params.filter ? JSON.parse(e.view.params.filter) : null,
