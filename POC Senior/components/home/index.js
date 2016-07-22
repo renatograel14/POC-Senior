@@ -43,52 +43,8 @@ app.home = kendo.observable({
 
             return img;
         },
-        dataSourceOptions = {
-            offlineStorage: 'requestSenior',
-			transport: {
-        		read: function(options) {
-                    $.ajax({
-                		url: 'http://localhost:8081/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_requisicoespendentes',
-                		type: 'POST',
-                		contentType: "text/xml",
-                		dataType: "xml",
-                		data: '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://services.senior.com.br">\
-                                <soapenv:Header/> \
-                                <soapenv:Body>\
-                                <ser:RequisicoesPendentes_2>\
-                                <user>senior</user>\
-                                <password>senior</password>\
-                                <encryption>0</encryption>\
-                                <parameters>\
-                                </parameters>\
-                                </ser:RequisicoesPendentes_2>\
-                                </soapenv:Body>\
-                                </soapenv:Envelope>',
-                		success: function(result) {
-                    		options.success(result);
-                		},
-                		error: function(xhr, ajaxOptions, thrownError) {
-                    		console.log(xhr.status);
-                    		console.log(thrownError);
-                		}
-            		});
-    			},
-        	},
-    		schema: {
-        		type: "xml",
-        		data: "S:Envelope/S:Body/ns2:RequisicoesPendentes_2Response/result/gridRequisicoes",
-       		    model: {
-                    fields: {
-                        codEmp: "codDer/text()",
-                        numEme: "numEme/text()",
-                        qtdEme: "qtdEme/text()"
-                    }
-                }
-            }
-		},
-        dataSource = new kendo.data.DataSource(dataSourceOptions),
         homeModel = kendo.observable({
-            dataSource: dataSource,
+            dataSource: dataProvider,
             fixHierarchicalData: function(data) {
                 var result = {},
                     layout = {};

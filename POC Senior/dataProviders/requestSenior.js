@@ -1,10 +1,52 @@
 'use strict';
 
 (function() {
-    app.data.requestSenior = {
-        url: 'http://localhost:8081/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_requisicoespendentes'
-    }
-
+    //var host = '189.16.40.94:8080';
+    var host = 'localhost:8081';
+    
+    app.data.requestSenior = new kendo.data.DataSource({
+            offlineStorage: 'requestSenior',
+			transport: {
+        		read: function(options) {
+                    $.ajax({
+                		url: 'http://'+ host + '/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_requisicoespendentes',
+                		type: 'POST',
+                		contentType: "text/xml",
+                		dataType: "xml",
+                		data: '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://services.senior.com.br">\
+                                <soapenv:Header/> \
+                                <soapenv:Body>\
+                                <ser:RequisicoesPendentes_2>\
+                                <user>senior</user>\
+                                <password>senior</password>\
+                                <encryption>0</encryption>\
+                                <parameters>\
+                                </parameters>\
+                                </ser:RequisicoesPendentes_2>\
+                                </soapenv:Body>\
+                                </soapenv:Envelope>',
+                		success: function(result) {
+                    		options.success(result);
+                		},
+                		error: function(xhr, ajaxOptions, thrownError) {
+                    		console.log(xhr.status);
+                    		console.log(thrownError);
+                		}
+            		});
+    			},
+        	},
+    		schema: {
+        		type: "xml",
+        		data: "S:Envelope/S:Body/ns2:RequisicoesPendentes_2Response/result/gridRequisicoes",
+       		    model: {
+                    fields: {
+                        codEmp: "codDer/text()",
+                        numEme: "numEme/text()",
+                        qtdEme: "qtdEme/text()"
+                    }
+                }
+            }
+		});
     app.data.dataSourceAprove = new kendo.data.DataSource({
         offlineStorage: 'requestsAproved',
         transport: {
@@ -13,10 +55,10 @@
                 options.success({});
             },
             create: function(options) {
-				var requestToAprove = options.data;
+                var requestToAprove = options.data;
                 app.mobileApp.showLoading();
                 $.ajax({
-                    url: 'http://localhost:8081/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_aprovarrequisicoes',
+                    url: 'http://' + host + '/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_aprovarrequisicoes',
                     type: 'POST',
                     contentType: "text/xml",
                     dataType: "xml",
@@ -58,7 +100,7 @@
         },
         schema: {
             type: 'xml',
-             data: 'S:Envelope/S:Body/ns2:AprovarRequisicoesResponse/result/',
+            data: 'S:Envelope/S:Body/ns2:AprovarRequisicoesResponse/result/',
             errors: function(response){
                 var errPath =  response['S:Envelope']['S:Body']['ns2:AprovarRequisicoesResponse']['result']['erroExecucao']['#text'];
                 return errPath;
@@ -80,7 +122,7 @@
                 console.log(options);
                 app.mobileApp.showLoading();
                 $.ajax({
-                    url: 'http://localhost:8081/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_requisicoes',
+                    url: 'http://' + host + '/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_requisicoes',
                     type: 'POST',
                     contentType: "text/xml",
                     dataType: "xml",
@@ -133,17 +175,17 @@
 
 
     document.addEventListener('online', function _appOnline() {
-        app.data.dataSourceAprove.online(true);
-        app.data.dataSourceAprove.sync();
+       app.data.dataSourceAprove.online(true);
+       app.data.dataSourceAprove.sync();
 
-        app.data.dataSourceRefuse.online(true);
-        app.data.dataSourceRefuse.sync();
-    });
+       app.data.dataSourceRefuse.online(true);
+       app.data.dataSourceRefuse.sync();
+   });
 
     document.addEventListener('offline', function _appOffline() {
-        app.data.dataSourceAprove.online(false);        
-        app.data.dataSourceRefuse.online(false);
-    });
+       app.data.dataSourceAprove.online(false);        
+       app.data.dataSourceRefuse.online(false);
+   });
 }());
 
 // START_CUSTOM_CODE_requestSenior
