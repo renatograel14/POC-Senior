@@ -4,16 +4,20 @@
     //var host = '189.16.40.94:8080';
     var host = 'localhost:8081';
     
+    //Datasource de acesso à leitura das requisições
     app.data.requestSenior = new kendo.data.DataSource({
             offlineStorage: 'requestSenior',
 			transport: {
-        		read: function(options) {
-                    $.ajax({
-                		url: 'http://'+ host + '/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_requisicoespendentes',
-                		type: 'POST',
-                		contentType: "text/xml",
-                		dataType: "xml",
-                		data: '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://services.senior.com.br">\
+        		read: {
+                    //Dados do Post para a leitura
+                    url: 'http://localhost:8081/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_requisicoespendentes',
+                    type: 'POST',
+                    contentType: "text/xml",
+                    dataType: "xml",
+    			},
+                parameterMap: function(data){
+                    //Definição do corpo do request
+                    return '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://services.senior.com.br">\
                                 <soapenv:Header/> \
                                 <soapenv:Body>\
                                 <ser:RequisicoesPendentes_2>\
@@ -24,22 +28,15 @@
                                 </parameters>\
                                 </ser:RequisicoesPendentes_2>\
                                 </soapenv:Body>\
-                                </soapenv:Envelope>',
-                		success: function(result) {
-                    		options.success(result);
-                		},
-                		error: function(xhr, ajaxOptions, thrownError) {
-                    		console.log(xhr.status);
-                    		console.log(thrownError);
-                		}
-            		});
-    			},
+                                </soapenv:Envelope>';
+                }
         	},
+        	// definição do schema dos dados
     		schema: {
-        		type: "xml",
-        		data: "S:Envelope/S:Body/ns2:RequisicoesPendentes_2Response/result/gridRequisicoes",
+        		type: "xml", //tipo do corpo do request possivel também - json
+        		data: "S:Envelope/S:Body/ns2:RequisicoesPendentes_2Response/result/gridRequisicoes", //caminho da leitura dos dados
        		    model: {
-                    fields: {
+                    fields: { //campos do request (dados)
                         codEmp: "codDer/text()",
                         numEme: "numEme/text()",
                         qtdEme: "qtdEme/text()"
@@ -47,22 +44,21 @@
                 }
             }
 		});
+    
+    //Definição dos datasource do envio de aprovações
     app.data.dataSourceAprove = new kendo.data.DataSource({
-        offlineStorage: 'requestsAproved',
+        offlineStorage: 'requestsAproved', 
         transport: {
-            read: function(options){
-                console.log('read', options.data);
-                options.success({});
+            create: {
+                url: 'http://' + host + '/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_aprovarrequisicoes',
+                type: 'POST',
+                contentType: "text/xml",
+                dataType: "xml"
             },
-            create: function(options) {
-                var requestToAprove = options.data;
-                app.mobileApp.showLoading();
-                $.ajax({
-                    url: 'http://' + host + '/g5-senior-services/sapiens_Synccom_senior_g5_co_mcm_est_aprovarrequisicoes',
-                    type: 'POST',
-                    contentType: "text/xml",
-                    dataType: "xml",
-                    data: '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://services.senior.com.br"> \
+        	parameterMap: function(data, type){
+                console.log(data);
+                var requestToAprove = data, //captura os dados da requisição que será enviada
+                    request = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://services.senior.com.br"> \
                     <soapenv:Header/> \
                     <soapenv:Body> \
                     <ser:AprovarRequisicoes> \
@@ -80,24 +76,21 @@
                     </parameters> \
                     </ser:AprovarRequisicoes> \
                     </soapenv:Body> \
-                    </soapenv:Envelope>',
-                    success: function(result) {
-                        console.log('Aprove', result);
-                        app.mobileApp.hideLoading();
-                        options.success(result);
-                    },
-                    error: function(xhr, ajaxOptions, thrownError) {
-                        console.log(xhr.status);
-                        console.log(thrownError);
-                        app.mobileApp.hideLoading();
-                        options.error(thrownError);
-                    }
-                });
+                    </soapenv:Envelope>';
+                return request;
             }
+        },
+        batch: true,
+        requestStart: function(e) {
+			app.mobileApp.showLoading();
+        },
+        requestEnd: function(e) {
+            app.mobileApp.hideLoading();
         },
         error: function(err){
             navigator.notification.alert(err.errors, null, 'Erro', 'OK');
         },
+        //Schema dos dados recebido, note que é declarado o schema da mensagem de erro de lógica, caso o retorno seja 200 com erro    
         schema: {
             type: 'xml',
             data: 'S:Envelope/S:Body/ns2:AprovarRequisicoesResponse/result/',
@@ -111,6 +104,8 @@
         }
     });
 
+
+	//data source contém as mesmas propriedades definidas dos da aprovação
     app.data.dataSourceRefuse = new kendo.data.DataSource({
         offlineStorage: 'requestsRefused',
         transport: {
@@ -173,13 +168,13 @@
         }
     });
 
-
+	// Listeners para a verificação do device online ou offline
     document.addEventListener('online', function _appOnline() {
        app.data.dataSourceAprove.online(true);
-       app.data.dataSourceAprove.sync();
+       app.data.dataSourceAprove.sync(); //sincronização dos dados
 
        app.data.dataSourceRefuse.online(true);
-       app.data.dataSourceRefuse.sync();
+       app.data.dataSourceRefuse.sync(); //sincronização dos dados
    });
 
     document.addEventListener('offline', function _appOffline() {
